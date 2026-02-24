@@ -1,0 +1,309 @@
+openapi: "3.0.3"
+
+info:
+  title: Presensi QR Dinamis API
+  version: "1.0.0"
+  description: |
+    Google Apps Script Web App backend for QR-based attendance,
+    batch accelerometer telemetry, and GPS tracking.
+
+    **Routing:** All endpoints use the query parameter `path` as a virtual path
+    because GAS only exposes a single `/exec` URL.
+
+servers:
+  - url: https://script.google.com/macros/s/{SCRIPT_ID}/exec
+    description: GAS Web App (replace {SCRIPT_ID} with your deployment ID)
+
+# ─── Paths ───────────────────────────────────────────────────
+
+paths:
+
+  # ── Presence ──────────────────────────────────────────────
+
+  /?path=presence/qr/generate:
+    post:
+      operationId: generateQR
+      summary: Generate a QR attendance token
+      tags: [Presence]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [course_id, session_id]
+              properties:
+                course_id:
+                  type: string
+                  example: cloud-101
+                session_id:
+                  type: string
+                  example: sesi-02
+                ts:
+                  type: string
+                  format: date-time
+                  example: "2026-02-18T10:00:00Z"
+      responses:
+        "200":
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessQRToken"
+
+  /?path=presence/checkin:
+    post:
+      operationId: checkin
+      summary: Check-in a student using a QR token
+      tags: [Presence]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, device_id, course_id, session_id, qr_token]
+              properties:
+                user_id:
+                  type: string
+                  example: "2023xxxx"
+                device_id:
+                  type: string
+                  example: dev-001
+                course_id:
+                  type: string
+                  example: cloud-101
+                session_id:
+                  type: string
+                  example: sesi-02
+                qr_token:
+                  type: string
+                  example: TKN-8F2A19
+                ts:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Check-in result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessCheckin"
+
+  /?path=presence/status:
+    get:
+      operationId: presenceStatus
+      summary: Get attendance status for a student
+      tags: [Presence]
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: course_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: session_id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Presence status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessStatus"
+
+  # ── Sensors ───────────────────────────────────────────────
+
+  /?path=sensor/accel/batch:
+    post:
+      operationId: accelBatch
+      summary: Submit a batch of accelerometer samples
+      tags: [Sensors]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, data]
+              properties:
+                device_id:
+                  type: string
+                  example: dev-001
+                ts:
+                  type: string
+                  format: date-time
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      x: { type: number, example: 0.12 }
+                      y: { type: number, example: -0.05 }
+                      z: { type: number, example: 9.81 }
+                      ts: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Batch saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      device_id: { type: string }
+                      samples_saved: { type: integer }
+
+  /?path=sensor/gps:
+    post:
+      operationId: postGps
+      summary: Submit a GPS data point
+      tags: [Sensors]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, lat, lng]
+              properties:
+                device_id: { type: string, example: dev-001 }
+                lat: { type: number, example: -7.983908 }
+                lng: { type: number, example: 112.621391 }
+                accuracy: { type: number }
+                altitude: { type: number }
+                ts: { type: string, format: date-time }
+      responses:
+        "200":
+          description: GPS point saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      device_id: { type: string }
+                      status: { type: string, example: saved }
+
+  /?path=sensor/gps/marker:
+    get:
+      operationId: gpsMarker
+      summary: Get latest GPS point for a device
+      tags: [Sensors]
+      parameters:
+        - name: device_id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Latest GPS marker
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      device_id: { type: string }
+                      lat: { type: number }
+                      lng: { type: number }
+                      accuracy: { type: number }
+                      altitude: { type: number }
+                      ts: { type: string, format: date-time }
+
+  /?path=sensor/gps/polyline:
+    get:
+      operationId: gpsPolyline
+      summary: Get GPS trail within a time range
+      tags: [Sensors]
+      parameters:
+        - name: device_id
+          in: query
+          required: true
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Ordered GPS polyline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      device_id: { type: string }
+                      count: { type: integer }
+                      points:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            lat: { type: number }
+                            lng: { type: number }
+                            accuracy: { type: number }
+                            altitude: { type: number }
+                            ts: { type: string, format: date-time }
+
+# ─── Components ──────────────────────────────────────────────
+
+components:
+  schemas:
+    SuccessQRToken:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            qr_token: { type: string, example: TKN-8F2A19 }
+            expires_at: { type: string, format: date-time }
+
+    SuccessCheckin:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            presence_id: { type: string, example: PR-0001 }
+            status: { type: string, example: checked_in }
+
+    SuccessStatus:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            user_id: { type: string }
+            course_id: { type: string }
+            session_id: { type: string }
+            status: { type: string, enum: [checked_in, not_checked_in] }
+            last_ts: { type: string, format: date-time, nullable: true }
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok: { type: boolean, example: false }
+        error: { type: string }
