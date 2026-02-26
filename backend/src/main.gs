@@ -7,7 +7,7 @@
 
 // --------------- CONFIG ---------------
 // ⚠️ WAJIB DIISI: Buka Google Sheet kamu, salin ID dari URL-nya.
-// URL Sheet: https://docs.google.com/spreadsheets/d/<INI_ID_NYA>/edit
+// URL Sheet: https://docs.google.com/spreadsheets/d/1vpsC0vigfWfeMUdPds8QsVbPehOhQzy-QxW9xnWMijM/edit
 var SPREADSHEET_ID = "1vpsC0vigfWfeMUdPds8QsVbPehOhQzy-QxW9xnWMijM";
 var TOKEN_TTL_MS   = 120000; // 2 menit
 
