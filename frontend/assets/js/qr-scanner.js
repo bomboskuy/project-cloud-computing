@@ -10,9 +10,9 @@ async function generateQR() {
   try {
     const res = await fetch(`${BASE_URL}?path=presence/qr/generate`, {
       method: "POST",
-      redirect: "follow", // Penting untuk GAS
+      redirect: "follow",
       headers: {
-        "Content-Type": "text/plain;charset=utf-8", // KUNCI: hindari preflight CORS
+        "Content-Type": "text/plain;charset=utf-8",
       },
       body: JSON.stringify(payload),
     });
@@ -42,9 +42,6 @@ async function generateQR() {
   }
 }
 
-/* =========================
-   START QR SCANNER
-========================= */
 function startScanner() {
   if (html5QrCode) html5QrCode.clear();
 
@@ -61,7 +58,7 @@ function startScanner() {
         checkinWithToken(decodedText);
       },
       (errorMessage) => {
-        // Optional: console.log("QR scan error:", errorMessage);
+        console.error("QR scan error:", errorMessage);
       },
     )
     .catch((err) => {
@@ -70,9 +67,6 @@ function startScanner() {
     });
 }
 
-/* =========================
-   CHECKIN DENGAN TOKEN
-========================= */
 async function checkinWithToken(qr_token) {
   const payload = {
     user_id: document.getElementById("user_id").value || "2023xxxx",
@@ -110,16 +104,10 @@ async function checkinWithToken(qr_token) {
   }
 }
 
-/* =========================
-   CHECKIN MANUAL (untuk testing)
-========================= */
 async function manualCheckin() {
   checkinWithToken("MANUAL-TEST-123");
 }
 
-/* =========================
-   CEK STATUS PRESENSI
-========================= */
 async function checkStatus() {
   const user_id = document.getElementById("user_id").value || "2023xxxx";
   const course_id = document.getElementById("course_id")?.value || "cloud-101";
