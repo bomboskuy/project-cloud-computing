@@ -1,47 +1,108 @@
-let accelInterval = null;
+const GAS_ACCEL_URL =
+  "https://script.google.com/macros/s/AKfycbzCIs-Y-Avgs3QC05Yk1SVl3b3-pZ1pxMzrTiUeMeypVNhep0tO7FWDWWQMCIqTptfPXQ/exec";
 
-async function sendAccelBatch() {
-  const samples = [];
-  for (let i = 0; i < 5; i++) {
-    samples.push({
-      t: new Date(Date.now() - (4 - i) * 200).toISOString(),
-      x: (Math.random() * 0.8 - 0.4).toFixed(3),
-      y: (Math.random() * 0.8 - 0.4).toFixed(3),
-      z: (9.7 + Math.random() * 0.6 - 0.3).toFixed(3),
-    });
-  }
+let isRunning = false;
+let batchTimer = null;
+let batchData = [];
 
-  const res = await fetch(`${BASE_URL}/telemetry/accel`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      device_id: DEVICE_ID,
-      ts: new Date().toISOString(),
-      samples: samples,
-    }),
-  });
-  const data = await handleResponse(res);
-
-  const log = document.getElementById("log");
-  const time = new Date().toLocaleTimeString();
-  log.innerHTML += `<div class="mb-1 ${data.ok ? "text-green-600" : "text-red-600"}">${time} → ${data.ok ? "OK (" + data.data.accepted + ")" : data.error}</div>`;
-  log.scrollTop = log.scrollHeight;
-
-  const last = samples[samples.length - 1];
-  document.getElementById("x").textContent = last.x;
-  document.getElementById("y").textContent = last.y;
-  document.getElementById("z").textContent = last.z;
+/* ── Toggle Start / Stop ───────────────────── */
+function toggleAccel() {
+  isRunning ? stopAccel() : startAccel();
 }
 
-function toggleAccel() {
-  const btn = document.getElementById("btnAccel");
-  if (accelInterval) {
-    clearInterval(accelInterval);
-    accelInterval = null;
-    btn.textContent = "▶ START KIRIM BATCH (2.5 detik)";
+/* ── Start ─────────────────────────────────── */
+function startAccel() {
+  if (typeof DeviceMotionEvent === "undefined") {
+    logLine("log", "DeviceMotionEvent tidak didukung di browser ini.", "err");
+    return;
+  }
+
+  const begin = () => {
+    isRunning = true;
+    _updateBtn(true);
+    logLine("log", "Sensor aktif. Batch dikirim setiap 2.5 detik.", "info");
+    window.addEventListener("devicemotion", _onMotion);
+    batchTimer = setInterval(_sendBatch, 2500);
+  };
+
+  if (typeof DeviceMotionEvent.requestPermission === "function") {
+    DeviceMotionEvent.requestPermission()
+      .then((state) =>
+        state === "granted"
+          ? begin()
+          : logLine("log", "Izin sensor ditolak.", "err"),
+      )
+      .catch((e) => logLine("log", "Permission error: " + e, "err"));
   } else {
-    accelInterval = setInterval(sendAccelBatch, 2500);
-    btn.textContent = "⏹ STOP KIRIM BATCH";
-    sendAccelBatch();
+    begin();
+  }
+}
+
+/* ── Stop ──────────────────────────────────── */
+function stopAccel() {
+  isRunning = false;
+  clearInterval(batchTimer);
+  batchTimer = null;
+  window.removeEventListener("devicemotion", _onMotion);
+  _updateBtn(false);
+  logLine("log", "Dihentikan.", "info");
+}
+
+/* ── Device Motion Handler ─────────────────── */
+function _onMotion(e) {
+  const a = e.accelerationIncludingGravity;
+  if (!a) return;
+
+  const x = (a.x || 0).toFixed(3);
+  const y = (a.y || 0).toFixed(3);
+  const z = (a.z || 0).toFixed(3);
+
+  // Update display
+  document.getElementById("val-x").textContent = x;
+  document.getElementById("val-y").textContent = y;
+  document.getElementById("val-z").textContent = z;
+
+  batchData.push({ x, y, z, t: new Date().toISOString() });
+}
+
+/* ── Send Batch to GAS ─────────────────────── */
+async function _sendBatch() {
+  if (batchData.length === 0) return;
+
+  const samples = [...batchData];
+  batchData = [];
+  logLine("log", `Kirim ${samples.length} data point...`, "info");
+
+  try {
+    const res = await fetch(GAS_ACCEL_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        device_id: DEVICE_ID,
+        ts: new Date().toISOString(),
+        samples,
+      }),
+    });
+    const data = await res.json();
+    logLine("log", "OK: " + JSON.stringify(data), "ok");
+  } catch (err) {
+    logLine("log", "Gagal kirim: " + err.message, "err");
+  }
+}
+
+/* ── Update Button State ───────────────────── */
+function _updateBtn(active) {
+  const btn = document.getElementById("btnAccel");
+  const dot = document.getElementById("status-dot");
+  if (!btn) return;
+
+  if (active) {
+    btn.className = "btn btn-stop";
+    btn.innerHTML =
+      '<span class="status-dot running" id="status-dot"></span> ■ STOP KIRIM BATCH';
+  } else {
+    btn.className = "btn btn-primary";
+    btn.innerHTML =
+      '<span class="status-dot" id="status-dot"></span> ▶ START KIRIM BATCH (2.5 detik)';
   }
 }

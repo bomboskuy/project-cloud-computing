@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GPS Tracking</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  </head>
+  <body>
+    <div class="container-lg">
+      <h1 class="page-title">
+        GPS Tracking <span class="hl-cyan">+ Peta</span>
+      </h1>
+
+      <!-- MAP CARD -->
+      <div class="card">
+        <div id="map"></div>
+
+        <!-- INFO STRIP -->
+        <div class="info-strip">
+          <div class="info-cell">
+            <div class="val" id="info-lat">—</div>
+            <div class="lbl">Latitude</div>
+          </div>
+          <div class="info-cell">
+            <div class="val" id="info-lng">—</div>
+            <div class="lbl">Longitude</div>
+          </div>
+          <div class="info-cell">
+            <div class="val" id="info-pts">0</div>
+            <div class="lbl">Titik Log</div>
+          </div>
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="map-controls">
+          <button class="btn btn-primary" id="btnStart" onclick="startGPS()">
+            <span class="status-dot" id="dot"></span>
+            START LOG GPS
+          </button>
+          <button class="btn btn-stop" onclick="stopGPS()">■ STOP</button>
+        </div>
+      </div>
+
+      <!-- LOG -->
+      <div class="log-box log-sm" id="log">
+        <span class="log-info">[READY] Tekan START GPS untuk memulai...</span>
+      </div>
+    </div>
+
+    <footer>
+      <nav class="footer-nav">
+        <a href="index.html" class="nav-item"
+          ><span class="nav-icon">🏠</span>Home</a
+        >
+        <a href="presence.html" class="nav-item"
+          ><span class="nav-icon">📱</span>Presensi</a
+        >
+        <a href="telemetry.html" class="nav-item"
+          ><span class="nav-icon">📊</span>Accelerometer</a
+        >
+        <a href="gps.html" class="nav-item active"
+          ><span class="nav-icon">📍</span>GPS</a
+        >
+      </nav>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/gps.js"></script>
+  </body>
+</html>

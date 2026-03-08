@@ -1,9 +1,22 @@
 let html5QrCode = null;
 
+/* ── Tab Switcher ──────────────────────────── */
+function showTab(n) {
+  document
+    .querySelectorAll(".tab-btn")
+    .forEach((b, i) => b.classList.toggle("active", i === n));
+  document.getElementById("tab-0").classList.toggle("hidden", n !== 0);
+  document.getElementById("tab-1").classList.toggle("hidden", n !== 1);
+}
+
+/* ── Generate QR ───────────────────────────── */
 async function generateQR() {
+  const course_id = document.getElementById("course_id").value.trim();
+  const session_id = document.getElementById("session_id").value.trim();
+
   const payload = {
-    course_id: document.getElementById("course_id").value,
-    session_id: document.getElementById("session_id").value,
+    course_id,
+    session_id,
     ts: new Date().toISOString(),
   };
 
@@ -11,130 +24,117 @@ async function generateQR() {
     const res = await fetch(`${BASE_URL}?path=presence/qr/generate`, {
       method: "POST",
       redirect: "follow",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8",
-      },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Server error ${res.status}: ${errorText}`);
-    }
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
 
     const data = await handleResponse(res);
 
     if (data.ok) {
-      document.getElementById("qr-result").classList.remove("hidden");
-
       document.getElementById("token-display").textContent = data.data.qr_token;
-
-      document.getElementById("expires").textContent = data.data.expires_at;
-
+      document.getElementById("expires").textContent =
+        data.data.expires_at || "-";
       document.getElementById("qr-image").src =
-        `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(data.data.qr_token)}`;
+        `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.data.qr_token)}`;
+      document.getElementById("qr-result").classList.add("show");
     } else {
-      showAlert(data.error || "Gagal generate QR (response tidak OK)", "error");
+      alert(data.error || "Gagal generate QR");
     }
   } catch (err) {
     console.error("Generate QR failed:", err);
-    showAlert("Gagal generate QR: " + (err.message || err), "error");
+    alert("Gagal generate QR: " + err.message);
   }
 }
 
+/* ── Start Camera Scanner ──────────────────── */
 function startScanner() {
   if (html5QrCode) html5QrCode.clear();
-
   html5QrCode = new Html5Qrcode("reader");
-
-  const config = { fps: 15, qrbox: 250 };
 
   html5QrCode
     .start(
       { facingMode: "environment" },
-      config,
+      { fps: 15, qrbox: 220 },
       (decodedText) => {
         html5QrCode.stop();
         checkinWithToken(decodedText);
       },
-      (errorMessage) => {
-        console.error("QR scan error:", errorMessage);
+      (err) => {
+        /* scanning errors, intentionally ignored */
       },
     )
-    .catch((err) => {
-      console.error("Start scanner failed:", err);
-      showAlert("Gagal memulai kamera: " + err, "error");
-    });
+    .catch((err) => alert("Gagal memulai kamera: " + err));
 }
 
+/* ── Check-in with Token ───────────────────── */
 async function checkinWithToken(qr_token) {
   const payload = {
     user_id: document.getElementById("user_id").value || "2023xxxx",
     device_id: DEVICE_ID,
     course_id: document.getElementById("course_id")?.value || "cloud-101",
     session_id: document.getElementById("session_id")?.value || "sesi-02",
-    qr_token: qr_token,
+    qr_token,
     ts: new Date().toISOString(),
   };
+
+  const box = document.getElementById("status-result");
+  box.className = "status-box";
+  box.textContent = "Memproses check-in...";
 
   try {
     const res = await fetch(`${BASE_URL}?path=presence/checkin`, {
       method: "POST",
       redirect: "follow",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8", // KUNCI
-      },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Check-in error ${res.status}: ${errorText}`);
-    }
+    if (!res.ok) throw new Error(`Check-in error ${res.status}`);
 
     const data = await handleResponse(res);
 
-    showAlert(
-      data.ok ? "Check-in BERHASIL!" : data.error || "Check-in gagal",
-      data.ok ? "success" : "error",
-    );
+    box.textContent = JSON.stringify(data, null, 2);
+    box.className = "status-box " + (data.ok ? "success" : "error");
   } catch (err) {
+    box.textContent = "Error: " + err.message;
+    box.className = "status-box error";
     console.error("Checkin failed:", err);
-    showAlert("Checkin gagal: " + (err.message || err), "error");
   }
 }
 
-async function manualCheckin() {
+/* ── Manual Check-in (Test) ────────────────── */
+function manualCheckin() {
   checkinWithToken("MANUAL-TEST-123");
 }
 
+/* ── Check Status ──────────────────────────── */
 async function checkStatus() {
-  const user_id = document.getElementById("user_id").value || "2023xxxx";
+  const user_id = document.getElementById("user_id")?.value || "2023xxxx";
   const course_id = document.getElementById("course_id")?.value || "cloud-101";
   const session_id = document.getElementById("session_id")?.value || "sesi-02";
 
+  const url =
+    `${BASE_URL}?path=presence/status` +
+    `&user_id=${encodeURIComponent(user_id)}` +
+    `&course_id=${encodeURIComponent(course_id)}` +
+    `&session_id=${encodeURIComponent(session_id)}`;
+
+  const box = document.getElementById("status-result");
+  box.className = "status-box";
+  box.textContent = "Mengambil data...";
+
   try {
-    const url = `${BASE_URL}?path=presence/status&user_id=${encodeURIComponent(user_id)}&course_id=${encodeURIComponent(course_id)}&session_id=${encodeURIComponent(session_id)}`;
-
-    const res = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Status error ${res.status}: ${errorText}`);
-    }
-
+    const res = await fetch(url, { method: "GET", redirect: "follow" });
+    if (!res.ok) throw new Error(`Status error ${res.status}`);
     const data = await handleResponse(res);
 
-    const el = document.getElementById("status-result");
-
-    el.innerHTML = data.ok
-      ? `<span class="text-green-600 font-bold">✅ ${data.data.status}</span><br><small>Last: ${data.data.last_ts || "-"}</small>`
-      : `<span class="text-red-600">❌ ${data.error || "Gagal memuat status"}</span>`;
+    box.textContent = JSON.stringify(data, null, 2);
+    box.className = "status-box " + (data.ok ? "success" : "error");
   } catch (err) {
+    box.textContent = "Error: " + err.message;
+    box.className = "status-box error";
     console.error("Check status failed:", err);
-    showAlert("Status gagal: " + (err.message || err), "error");
   }
 }

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accelerometer Telemetry</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="page-title">
+        Accelerometer <span class="hl-green">Telemetry</span>
+      </h1>
+
+      <div class="card">
+        <div class="card-body">
+          <!-- AXIS DISPLAY -->
+          <div class="axes">
+            <div class="axis-box" id="axis-x">
+              <span class="val" id="val-x">0.00</span>
+              <span class="axis-label">X — AXIS</span>
+            </div>
+            <div class="axis-box" id="axis-y">
+              <span class="val" id="val-y">0.00</span>
+              <span class="axis-label">Y — AXIS</span>
+            </div>
+            <div class="axis-box" id="axis-z">
+              <span class="val" id="val-z">0.00</span>
+              <span class="axis-label">Z — AXIS</span>
+            </div>
+          </div>
+
+          <!-- START / STOP BUTTON -->
+          <button class="btn btn-primary" id="btnAccel" onclick="toggleAccel()">
+            <span class="status-dot" id="status-dot"></span>
+            ▶ START KIRIM BATCH (2.5 detik)
+          </button>
+
+          <!-- LOG OUTPUT -->
+          <div class="log-box" id="log">
+            <span class="log-info"
+              >[READY] Tekan START untuk memulai pengiriman data...</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <nav class="footer-nav">
+        <a href="index.html" class="nav-item"
+          ><span class="nav-icon">🏠</span>Home</a
+        >
+        <a href="presence.html" class="nav-item"
+          ><span class="nav-icon">📱</span>Presensi</a
+        >
+        <a href="telemetry.html" class="nav-item active"
+          ><span class="nav-icon">📊</span>Accelerometer</a
+        >
+        <a href="gps.html" class="nav-item"
+          ><span class="nav-icon">📍</span>GPS</a
+        >
+      </nav>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/accel.js"></script>
+  </body>
+</html>

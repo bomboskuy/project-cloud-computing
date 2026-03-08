@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Presensi QR Dinamis</title>
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="page-title">Presensi <span>QR</span> Dinamis</h1>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showTab(0)">
+          👨‍🏫 Dosen (Generate QR)
+        </button>
+        <button class="tab-btn" onclick="showTab(1)">
+          🎓 Mahasiswa (Scan)
+        </button>
+      </div>
+
+      <!-- TAB 0: DOSEN -->
+      <div id="tab-0" class="card">
+        <div class="card-body">
+          <p class="card-title">Generate QR Token</p>
+          <input id="course_id" value="cloud-101" placeholder="Course ID" />
+          <input id="session_id" value="sesi-02" placeholder="Session ID" />
+          <button class="btn btn-primary" onclick="generateQR()">
+            GENERATE QR TOKEN
+          </button>
+
+          <div id="qr-result" class="qr-result">
+            <p class="qr-label">QR Token — scan di HP mahasiswa</p>
+            <div class="token-display" id="token-display">—</div>
+            <img id="qr-image" src="" alt="QR Code" />
+            <p class="qr-expires">Expired: <span id="expires">—</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 1: MAHASISWA -->
+      <div id="tab-1" class="card hidden">
+        <div class="card-body">
+          <p class="card-title">Scan QR Code</p>
+          <div id="reader"></div>
+          <button
+            class="btn btn-primary"
+            style="margin-top: 16px"
+            onclick="startScanner()"
+          >
+            MULAI SCAN KAMERA
+          </button>
+          <div style="margin-top: 24px">
+            <input id="user_id" value="2023xxxx" placeholder="NIM / User ID" />
+            <button class="btn btn-warning" onclick="manualCheckin()">
+              CHECK-IN MANUAL (Test)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATUS -->
+      <div class="card">
+        <div class="card-body">
+          <p class="card-title">Cek Status Presensi</p>
+          <button class="btn btn-primary" onclick="checkStatus()">
+            CEK STATUS SEKARANG
+          </button>
+          <div id="status-result" class="status-box">
+            Tekan tombol untuk mengecek status...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <nav class="footer-nav">
+        <a href="index.html" class="nav-item"
+          ><span class="nav-icon">🏠</span>Home</a
+        >
+        <a href="presence.html" class="nav-item active"
+          ><span class="nav-icon">📱</span>Presensi</a
+        >
+        <a href="telemetry.html" class="nav-item"
+          ><span class="nav-icon">📊</span>Accelerometer</a
+        >
+        <a href="gps.html" class="nav-item"
+          ><span class="nav-icon">📍</span>GPS</a
+        >
+      </nav>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/qr-scanner.js"></script>
+  </body>
+</html>
