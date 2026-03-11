@@ -30,6 +30,11 @@
             </div>
           </div>
 
+          <!-- GRAFIK REALTIME — ditambahkan -->
+          <div class="chart-wrap">
+            <canvas id="accelChart"></canvas>
+          </div>
+
           <!-- START / STOP BUTTON -->
           <button class="btn btn-primary" id="btnAccel" onclick="toggleAccel()">
             <span class="status-dot" id="status-dot"></span>
@@ -62,6 +67,9 @@
         >
       </nav>
     </footer>
+
+    <!-- Chart.js CDN — wajib ada sebelum accel.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
     <script src="assets/js/main.js"></script>
     <script src="assets/js/accel.js"></script>
