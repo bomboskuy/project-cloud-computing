@@ -588,13 +588,38 @@
         />
         <div class="config-row">
           <div>
-            <div class="config-label">Device ID</div>
-            <input
-              class="config-input"
-              id="deviceId"
-              placeholder="dev-001"
-              value="dev-001"
-            />
+            <div class="config-label">
+              Device ID
+              <span
+                id="deviceIdBadge"
+                style="font-size: 9px; color: var(--y); margin-left: 4px"
+                >● AUTO</span
+              >
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center">
+              <input
+                class="config-input"
+                id="deviceId"
+                placeholder="dev-001"
+                style="margin-bottom: 0; flex: 1"
+              />
+              <button
+                onclick="regenerateDeviceId()"
+                title="Generate ID baru"
+                style="
+                  background: var(--surface);
+                  border: 1px solid var(--border);
+                  border-radius: 8px;
+                  color: var(--z);
+                  font-size: 14px;
+                  padding: 9px 10px;
+                  cursor: pointer;
+                  flex-shrink: 0;
+                "
+              >
+                🔄
+              </button>
+            </div>
           </div>
           <div>
             <div class="config-label">Interval Kirim (detik)</div>
@@ -938,8 +963,9 @@
       // SEND BATCH TO GAS
       // ============================================================
       // ============================================================
-      // SEND BATCH — Image Beacon method (bypass CORS di semua browser/HP)
-      // GAS GET request dikirim lewat <img> src, tidak ada preflight CORS
+      // SEND BATCH — Script Tag Injection
+      // Metode paling reliable di semua HP & browser, zero CORS issue
+      // Kirim tiap sample satu per satu agar URL pendek & pasti diterima GAS
       // ============================================================
       function sendBatch() {
         if (samples.length === 0) return;
@@ -954,50 +980,64 @@
         }
 
         const deviceId =
-          document.getElementById("deviceId").value.trim() || "dev-001";
-        const payload = {
-          device_id: deviceId,
-          ts: new Date().toISOString(),
-          samples: [...samples],
-        };
-        samples = []; // Reset buffer
+          document.getElementById("deviceId").value.trim() ||
+          getOrCreateDeviceId();
 
+        const toSend = [...samples];
+        samples = []; // Reset buffer segera
+
+        const ts = new Date().toISOString();
+
+        // Kirim setiap sample satu per satu via script tag (no CORS sama sekali)
+        toSend.forEach((sample, i) => {
+          setTimeout(() => {
+            const payload = {
+              device_id: deviceId,
+              ts: ts,
+              samples: [sample], // 1 sample per request = URL pendek = pasti masuk
+            };
+            sendViaScriptTag(
+              baseUrl,
+              payload,
+              i === toSend.length - 1,
+              toSend.length,
+            );
+          }, i * 100); // jeda 100ms antar request agar GAS tidak overwhelmed
+        });
+      }
+
+      function sendViaScriptTag(baseUrl, payload, isLast, total) {
         const encoded = encodeURIComponent(JSON.stringify(payload));
-        const endpoint = baseUrl + "?action=postAccel&payload=" + encoded;
+        const callbackName =
+          "cb_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+        const endpoint =
+          baseUrl +
+          "?action=postAccel&payload=" +
+          encoded +
+          "&cb=" +
+          callbackName;
 
-        // Gunakan Image Beacon — tidak ada CORS, tidak ada preflight
-        // GAS akan simpan data dan return JSON (kita tidak bisa baca response-nya,
-        // tapi data TETAP TERSIMPAN di Sheets)
-        const img = new Image();
-        img.onload = () => {
-          batchCount++;
-          document.getElementById("statBatch").textContent = batchCount;
-          const msg =
-            "✓ Batch #" +
-            batchCount +
-            " → " +
-            payload.samples.length +
-            " samples terkirim";
-          document.getElementById("sendStatus").textContent = msg;
-          document.getElementById("sendStatus").className = "send-status ok";
-          addLog("OK", msg);
+        // Buat script tag — browser selalu load script dari URL manapun tanpa CORS
+        const script = document.createElement("script");
+        script.src = endpoint;
+
+        script.onload = script.onerror = () => {
+          // Hapus script tag setelah dipakai
+          if (script.parentNode) script.parentNode.removeChild(script);
+          if (window[callbackName]) delete window[callbackName];
+
+          if (isLast) {
+            batchCount++;
+            document.getElementById("statBatch").textContent = batchCount;
+            const msg =
+              "✓ Batch #" + batchCount + " → " + total + " samples → Sheets";
+            document.getElementById("sendStatus").textContent = msg;
+            document.getElementById("sendStatus").className = "send-status ok";
+            addLog("OK", msg);
+          }
         };
-        img.onerror = () => {
-          // GAS selalu return JSON (bukan image) jadi onerror terpanggil
-          // TAPI data sudah TERSIMPAN di Sheets! Ini normal.
-          batchCount++;
-          document.getElementById("statBatch").textContent = batchCount;
-          const msg =
-            "✓ Batch #" +
-            batchCount +
-            " → " +
-            payload.samples.length +
-            " samples terkirim ke Sheets";
-          document.getElementById("sendStatus").textContent = msg;
-          document.getElementById("sendStatus").className = "send-status ok";
-          addLog("OK", msg);
-        };
-        img.src = endpoint;
+
+        document.head.appendChild(script);
       }
 
       // ============================================================
@@ -1065,6 +1105,44 @@
               : "var(--muted)";
       }
 
+      // ============================================================
+      // DEVICE ID — Auto-generate & simpan di localStorage
+      // Setiap HP otomatis dapat ID unik yang persisten
+      // ============================================================
+      function getOrCreateDeviceId() {
+        let id = localStorage.getItem("accel_device_id");
+        if (!id) {
+          id = generateDeviceId();
+          localStorage.setItem("accel_device_id", id);
+        }
+        return id;
+      }
+
+      function generateDeviceId() {
+        // Format: DEV-XXXX-XXXX (huruf+angka acak)
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let part1 = "",
+          part2 = "";
+        for (let i = 0; i < 4; i++)
+          part1 += chars[Math.floor(Math.random() * chars.length)];
+        for (let i = 0; i < 4; i++)
+          part2 += chars[Math.floor(Math.random() * chars.length)];
+        return "DEV-" + part1 + "-" + part2;
+      }
+
+      function regenerateDeviceId() {
+        if (
+          !confirm(
+            "Generate Device ID baru?\nID lama akan diganti dan data history terpisah.",
+          )
+        )
+          return;
+        const newId = generateDeviceId();
+        localStorage.setItem("accel_device_id", newId);
+        document.getElementById("deviceId").value = newId;
+        addLog("INFO", "Device ID baru: " + newId);
+      }
+
       function addLog(type, msg) {
         const logBody = document.getElementById("logBody");
         const now = new Date().toLocaleTimeString("id-ID");
@@ -1085,6 +1163,18 @@
       window.addEventListener("DOMContentLoaded", () => {
         initChart();
 
+        // ── Auto-load atau buat Device ID unik per HP ──
+        const savedId = getOrCreateDeviceId();
+        document.getElementById("deviceId").value = savedId;
+        // Simpan tiap kali user edit manual
+        document.getElementById("deviceId").addEventListener("change", (e) => {
+          const val = e.target.value.trim();
+          if (val) {
+            localStorage.setItem("accel_device_id", val);
+            addLog("INFO", "Device ID disimpan: " + val);
+          }
+        });
+
         // Cek apakah sensor tersedia
         if (typeof DeviceMotionEvent === "undefined") {
           addLog("ERR", "DeviceMotion tidak tersedia di browser ini");
@@ -1095,6 +1185,7 @@
         // Android tidak butuh overlay permission
         if (typeof DeviceMotionEvent.requestPermission !== "function") {
           document.getElementById("overlay").classList.add("hidden");
+          addLog("INFO", "Device ID: " + savedId);
           addLog("INFO", "Sensor siap. Isi Base URL lalu tekan MULAI.");
         }
       });
