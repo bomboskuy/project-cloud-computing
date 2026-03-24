@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#07070f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Accel Sender</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap");
+      :root {
+        --bg: #07070f;
+        --card: #0e0e1a;
+        --border: #1e1e35;
+        --green: #00e5a0;
+        --red: #ff3d6e;
+        --blue: #5b8fff;
+        --muted: #4a4a6a;
+        --text: #e8e8f0;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "JetBrains Mono", monospace;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 16px 40px;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(91, 143, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(91, 143, 255, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 400px;
+        position: relative;
+        z-index: 1;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 28px;
+      }
+      .badge {
+        display: inline-block;
+        background: rgba(0, 229, 160, 0.1);
+        border: 1px solid rgba(0, 229, 160, 0.3);
+        color: var(--green);
+        font-size: 10px;
+        letter-spacing: 3px;
+        padding: 4px 14px;
+        border-radius: 20px;
+        margin-bottom: 10px;
+      }
+      .title {
+        font-family: "Syne", sans-serif;
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -1px;
+      }
+      .title span {
+        color: var(--green);
+      }
+      .subtitle {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+      .lbl {
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 8px;
+      }
+      input {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        padding: 11px 12px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      input:focus {
+        border-color: var(--blue);
+      }
+      input::placeholder {
+        color: var(--muted);
+      }
+      .row-flex {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .row-flex input {
+        flex: 1;
+      }
+      .btn-icon {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--blue);
+        font-size: 16px;
+        padding: 10px 12px;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.2s;
+      }
+      .btn-icon:active {
+        background: rgba(91, 143, 255, 0.15);
+      }
+      .circle-wrap {
+        text-align: center;
+        padding: 10px 0 6px;
+      }
+      .status-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        margin: 0 auto 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.4s;
+      }
+      .status-circle.live {
+        border-color: var(--green);
+        animation: breathe 2s ease-in-out infinite;
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          box-shadow: 0 0 20px rgba(0, 229, 160, 0.15);
+        }
+        50% {
+          box-shadow: 0 0 50px rgba(0, 229, 160, 0.35);
+        }
+      }
+      .circle-icon {
+        font-size: 40px;
+        margin-bottom: 4px;
+      }
+      .circle-status {
+        font-family: "Syne", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--muted);
+        transition: color 0.3s;
+      }
+      .circle-status.live {
+        color: var(--green);
+      }
+      .axis-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .axis-mini {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 8px;
+        text-align: center;
+      }
+      .alabel {
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .aval {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .ax {
+        color: #ff3d6e;
+      }
+      .ay {
+        color: #00e5a0;
+      }
+      .az {
+        color: #5b8fff;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .stat {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 8px;
+        text-align: center;
+      }
+      .stat-val {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--green);
+      }
+      .stat-lbl {
+        font-size: 9px;
+        color: var(--muted);
+        margin-top: 3px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .btn-main {
+        width: 100%;
+        padding: 16px;
+        border-radius: 12px;
+        border: none;
+        font-family: "Syne", sans-serif;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 10px;
+      }
+      .btn-start {
+        background: linear-gradient(135deg, #00e5a0, #00b87a);
+        color: #07070f;
+      }
+      .btn-start:active {
+        transform: scale(0.97);
+      }
+      .btn-start:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-stop {
+        background: linear-gradient(135deg, #ff3d6e, #cc2255);
+        color: #fff;
+      }
+      .btn-stop:active {
+        transform: scale(0.97);
+      }
+      .btn-stop:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .log-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .log-title {
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+      }
+      .log-body {
+        max-height: 160px;
+        overflow-y: auto;
+      }
+      .log-entry {
+        font-size: 11px;
+        padding: 3px 0;
+        border-bottom: 1px solid rgba(30, 30, 53, 0.5);
+        line-height: 1.5;
+      }
+      .log-entry:last-child {
+        border: none;
+      }
+      .lt {
+        color: var(--muted);
+      }
+      .lok {
+        color: var(--green);
+      }
+      .lerr {
+        color: var(--red);
+      }
+      .lnfo {
+        color: var(--blue);
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(7, 7, 15, 0.97);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 32px;
+        text-align: center;
+        gap: 16px;
+      }
+      .overlay.hidden {
+        display: none;
+      }
+      .ov-icon {
+        font-size: 54px;
+      }
+      .ov-title {
+        font-family: "Syne", sans-serif;
+        font-size: 24px;
+        font-weight: 800;
+      }
+      .ov-text {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.9;
+      }
+      .ov-btn {
+        padding: 14px 36px;
+        background: var(--green);
+        color: #07070f;
+        border: none;
+        border-radius: 10px;
+        font-family: "Syne", sans-serif;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="overlay" id="overlay">
+      <div class="ov-icon">📡</div>
+      <div class="ov-title">Izin Sensor</div>
+      <div class="ov-text">
+        Aplikasi butuh akses sensor<br />accelerometer untuk membaca<br />gerakan
+        HP dan mengirim data<br />ke Google Sheets.
+      </div>
+      <button class="ov-btn" onclick="requestPermission()">
+        IZINKAN SENSOR
+      </button>
+    </div>
+
+    <div class="wrap">
+      <div class="header">
+        <div class="badge">📤 SENDER</div>
+        <div class="title">Accel<span>Send</span></div>
+        <div class="subtitle">Kirim data sensor ke cloud</div>
+      </div>
+
+      <div class="card">
+        <div class="lbl">⚙ Base URL GAS</div>
+        <input
+          id="baseUrl"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          value="https://script.google.com/macros/s/AKfycbznbWAOdCQXuKyGP50xjk3sgluLxRmIRYmd-ebeT8BomSUutK5hAgALAswkWTF1cWrnQg/exec"
+        />
+        <div style="margin-top: 14px">
+          <div class="lbl">
+            Device ID HP ini
+            <span style="color: var(--green); font-size: 9px; margin-left: 6px"
+              >● AUTO</span
+            >
+          </div>
+          <div class="row-flex">
+            <input
+              id="deviceId"
+              placeholder="DEV-XXXX-XXXX"
+              readonly
+              style="
+                cursor: default;
+                background: rgba(0, 229, 160, 0.05);
+                border-color: rgba(0, 229, 160, 0.2);
+              "
+            />
+            <button
+              class="btn-icon"
+              onclick="regenerateId()"
+              title="Generate ID baru"
+            >
+              🔄
+            </button>
+          </div>
+        </div>
+        <div style="margin-top: 14px">
+          <div class="lbl">Interval Kirim (detik)</div>
+          <input id="interval" type="number" min="1" max="30" value="3" />
+        </div>
+      </div>
+
+      <div class="card circle-wrap">
+        <div class="status-circle" id="statusCircle">
+          <div class="circle-icon" id="circleIcon">📴</div>
+          <div class="circle-status" id="circleStatus">IDLE</div>
+        </div>
+      </div>
+
+      <div class="axis-row">
+        <div class="axis-mini">
+          <div class="alabel ax">X</div>
+          <div class="aval ax" id="vx">—</div>
+        </div>
+        <div class="axis-mini">
+          <div class="alabel ay">Y</div>
+          <div class="aval ay" id="vy">—</div>
+        </div>
+        <div class="axis-mini">
+          <div class="alabel az">Z</div>
+          <div class="aval az" id="vz">—</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-val" id="sSamples">0</div>
+          <div class="stat-lbl">Samples</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="sBatch">0</div>
+          <div class="stat-lbl">Terkirim</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val" id="sHz">0</div>
+          <div class="stat-lbl">Hz</div>
+        </div>
+      </div>
+
+      <button class="btn-main btn-start" id="btnStart" onclick="startSend()">
+        ▶ MULAI KIRIM
+      </button>
+      <button
+        class="btn-main btn-stop"
+        id="btnStop"
+        onclick="stopSend()"
+        disabled
+      >
+        ■ STOP
+      </button>
+
+      <div class="log-card">
+        <div class="log-title">📋 Activity Log</div>
+        <div class="log-body" id="logBody">
+          <div class="log-entry">
+            <span class="lnfo">[INFO]</span> Siap. Tekan MULAI KIRIM.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let running = false,
+        samples = [],
+        sendTimer = null,
+        rateTimer = null,
+        sampleCount = 0,
+        batchCount = 0,
+        perSecond = 0;
+
+      function makeId() {
+        const c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let a = "",
+          b = "";
+        for (let i = 0; i < 4; i++)
+          a += c[Math.floor(Math.random() * c.length)];
+        for (let i = 0; i < 4; i++)
+          b += c[Math.floor(Math.random() * c.length)];
+        return "DEV-" + a + "-" + b;
+      }
+      function getOrCreateId() {
+        let id = localStorage.getItem("accel_device_id");
+        if (!id) {
+          id = makeId();
+          localStorage.setItem("accel_device_id", id);
+        }
+        return id;
+      }
+      function regenerateId() {
+        if (
+          !confirm(
+            "Generate Device ID baru?\nData lama akan terpisah dari ID baru.",
+          )
+        )
+          return;
+        const id = makeId();
+        localStorage.setItem("accel_device_id", id);
+        document.getElementById("deviceId").value = id;
+        log("INFO", "Device ID baru: " + id);
+      }
+
+      function onMotion(e) {
+        if (!running) return;
+        const acc = e.accelerationIncludingGravity || e.acceleration;
+        if (!acc) return;
+        const x = acc.x || 0,
+          y = acc.y || 0,
+          z = acc.z || 0;
+        samples.push({
+          t: new Date().toISOString(),
+          x: +x.toFixed(4),
+          y: +y.toFixed(4),
+          z: +z.toFixed(4),
+        });
+        sampleCount++;
+        perSecond++;
+        document.getElementById("vx").textContent = x.toFixed(3);
+        document.getElementById("vy").textContent = y.toFixed(3);
+        document.getElementById("vz").textContent = z.toFixed(3);
+        document.getElementById("sSamples").textContent = sampleCount;
+      }
+
+      function sendBatch() {
+        if (samples.length === 0) return;
+        const baseUrl = document
+          .getElementById("baseUrl")
+          .value.trim()
+          .replace(/\/+$/, "");
+        const deviceId = document.getElementById("deviceId").value.trim();
+        if (!baseUrl) {
+          log("ERR", "Base URL kosong!");
+          return;
+        }
+        if (!deviceId) {
+          log("ERR", "Device ID kosong!");
+          return;
+        }
+        const toSend = [...samples];
+        samples = [];
+        const ts = new Date().toISOString();
+        toSend.forEach((sample, i) => {
+          setTimeout(() => {
+            const payload = { device_id: deviceId, ts: ts, samples: [sample] };
+            const encoded = encodeURIComponent(JSON.stringify(payload));
+            const url = baseUrl + "?action=postAccel&payload=" + encoded;
+            const s = document.createElement("script");
+            s.src = url;
+            s.onload = s.onerror = () => {
+              if (s.parentNode) s.parentNode.removeChild(s);
+            };
+            document.head.appendChild(s);
+          }, i * 80);
+        });
+        batchCount++;
+        document.getElementById("sBatch").textContent = batchCount;
+        log(
+          "OK",
+          "Batch #" + batchCount + " → " + toSend.length + " samples dikirim",
+        );
+      }
+
+      function startSend() {
+        const baseUrl = document.getElementById("baseUrl").value.trim();
+        if (!baseUrl) {
+          log("ERR", "Isi Base URL GAS dulu!");
+          return;
+        }
+        running = true;
+        samples = [];
+        sampleCount = 0;
+        batchCount = 0;
+        const sec = parseInt(document.getElementById("interval").value) || 3;
+        window.addEventListener("devicemotion", onMotion);
+        sendTimer = setInterval(sendBatch, sec * 1000);
+        rateTimer = setInterval(() => {
+          document.getElementById("sHz").textContent = perSecond;
+          perSecond = 0;
+        }, 1000);
+        setCircle(true);
+        document.getElementById("btnStart").disabled = true;
+        document.getElementById("btnStop").disabled = false;
+        log("INFO", "Streaming mulai → interval " + sec + "s");
+        log("INFO", "Device ID: " + document.getElementById("deviceId").value);
+      }
+
+      function stopSend() {
+        running = false;
+        window.removeEventListener("devicemotion", onMotion);
+        clearInterval(sendTimer);
+        clearInterval(rateTimer);
+        if (samples.length > 0) sendBatch();
+        setCircle(false);
+        document.getElementById("btnStart").disabled = false;
+        document.getElementById("btnStop").disabled = true;
+        log(
+          "INFO",
+          "Streaming berhenti. Total " +
+            sampleCount +
+            " samples, " +
+            batchCount +
+            " batch.",
+        );
+      }
+
+      function setCircle(on) {
+        document.getElementById("statusCircle").className =
+          "status-circle" + (on ? " live" : "");
+        document.getElementById("circleIcon").textContent = on ? "📡" : "📴";
+        const s = document.getElementById("circleStatus");
+        s.textContent = on ? "LIVE" : "IDLE";
+        s.className = "circle-status" + (on ? " live" : "");
+      }
+
+      function log(type, msg) {
+        const body = document.getElementById("logBody");
+        const time = new Date().toLocaleTimeString("id-ID");
+        const cls = type === "OK" ? "lok" : type === "ERR" ? "lerr" : "lnfo";
+        const el = document.createElement("div");
+        el.className = "log-entry";
+        el.innerHTML = `<span class="lt">${time}</span> <span class="${cls}">[${type}]</span> ${msg}`;
+        body.prepend(el);
+        while (body.children.length > 25) body.removeChild(body.lastChild);
+      }
+
+      async function requestPermission() {
+        if (
+          typeof DeviceMotionEvent !== "undefined" &&
+          typeof DeviceMotionEvent.requestPermission === "function"
+        ) {
+          try {
+            const r = await DeviceMotionEvent.requestPermission();
+            if (r === "granted") {
+              document.getElementById("overlay").classList.add("hidden");
+              log("OK", "Izin sensor diberikan (iOS)");
+            } else log("ERR", "Izin sensor ditolak");
+          } catch (e) {
+            log("ERR", "Error: " + e.message);
+          }
+        } else {
+          document.getElementById("overlay").classList.add("hidden");
+          log("INFO", "Sensor siap (Android/Desktop)");
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", () => {
+        const id = getOrCreateId();
+        document.getElementById("deviceId").value = id;
+        if (typeof DeviceMotionEvent === "undefined") {
+          document.getElementById("overlay").classList.add("hidden");
+          log("ERR", "Sensor tidak tersedia di browser ini");
+          return;
+        }
+        if (typeof DeviceMotionEvent.requestPermission !== "function") {
+          document.getElementById("overlay").classList.add("hidden");
+          log("INFO", "Device ID: " + id);
+          log("INFO", "Sensor siap. Tekan MULAI KIRIM.");
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accel Receiver — Real-time Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap");
+
+      :root {
+        --bg: #07070f;
+        --surface: #0d0d1a;
+        --card: #10101e;
+        --border: #1a1a32;
+        --x: #ff3d6e;
+        --y: #00e5a0;
+        --z: #5b8fff;
+        --text: #e8e8f0;
+        --muted: #4a4a6a;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "JetBrains Mono", monospace;
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(91, 143, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(91, 143, 255, 0.025) 1px, transparent 1px);
+        background-size: 50px 50px;
+        pointer-events: none;
+      }
+
+      /* ── TOPBAR ── */
+      .topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(7, 7, 15, 0.95);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        z-index: 50;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+      }
+      .logo {
+        font-family: "Syne", sans-serif;
+        font-size: 17px;
+        font-weight: 800;
+      }
+      .logo span {
+        color: var(--z);
+      }
+      .logo sub {
+        font-size: 10px;
+        color: var(--muted);
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 400;
+        margin-left: 8px;
+        letter-spacing: 1px;
+      }
+
+      .live-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(0, 229, 160, 0.08);
+        border: 1px solid rgba(0, 229, 160, 0.2);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 10px;
+        color: var(--y);
+        letter-spacing: 1.5px;
+      }
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition: all 0.3s;
+      }
+      .live-dot.on {
+        background: var(--y);
+        box-shadow: 0 0 8px var(--y);
+        animation: blink 1.2s infinite;
+      }
+      .live-dot.err {
+        background: var(--x);
+        box-shadow: 0 0 8px var(--x);
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      .last-upd {
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      /* ── MAIN ── */
+      .main {
+        padding: 72px 24px 32px;
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+
+      /* ── CONFIG ── */
+      .cfg-bar {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px 22px;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 14px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .cfg-grp {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .cfg-lbl {
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .cfg-lbl .badge-scan {
+        font-size: 9px;
+        padding: 2px 8px;
+        border-radius: 10px;
+        border: 1px solid;
+        transition: all 0.3s;
+      }
+      .badge-scan.ok {
+        color: var(--y);
+        border-color: rgba(0, 229, 160, 0.4);
+        background: rgba(0, 229, 160, 0.08);
+      }
+      .badge-scan.err {
+        color: var(--x);
+        border-color: rgba(255, 61, 110, 0.4);
+      }
+      .badge-scan.def {
+        color: var(--muted);
+        border-color: var(--border);
+      }
+
+      .cfg-inp {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        padding: 9px 12px;
+        outline: none;
+        transition: border-color 0.2s;
+        min-width: 160px;
+      }
+      .cfg-inp:focus {
+        border-color: var(--z);
+      }
+      .cfg-inp.wide {
+        min-width: 420px;
+      }
+
+      select.cfg-inp {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a4a6a'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 28px;
+      }
+
+      .dev-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .dev-row select {
+        flex: 1;
+      }
+
+      .btn-scan {
+        background: var(--surface);
+        border: 1px solid rgba(91, 143, 255, 0.4);
+        border-radius: 8px;
+        color: var(--z);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 9px 16px;
+        cursor: pointer;
+        white-space: nowrap;
+        letter-spacing: 0.5px;
+        transition: all 0.2s;
+      }
+      .btn-scan:hover {
+        background: rgba(91, 143, 255, 0.1);
+      }
+      .btn-scan:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-conn {
+        padding: 10px 24px;
+        background: linear-gradient(135deg, var(--z), #3a6fd8);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        letter-spacing: 1px;
+        white-space: nowrap;
+        transition: opacity 0.2s;
+      }
+      .btn-conn:hover {
+        opacity: 0.85;
+      }
+      .btn-conn.stop {
+        background: linear-gradient(135deg, var(--x), #cc2255);
+      }
+
+      /* ── AXIS CARDS ── */
+      .axis-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .axis-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 18px;
+        position: relative;
+        overflow: hidden;
+      }
+      .axis-card::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+      }
+      .axis-card.x::after {
+        background: var(--x);
+      }
+      .axis-card.y::after {
+        background: var(--y);
+      }
+      .axis-card.z::after {
+        background: var(--z);
+      }
+      .axis-card .alabel {
+        font-family: "Syne", sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 3px;
+        margin-bottom: 8px;
+      }
+      .axis-card.x .alabel {
+        color: var(--x);
+      }
+      .axis-card.y .alabel {
+        color: var(--y);
+      }
+      .axis-card.z .alabel {
+        color: var(--z);
+      }
+      .axis-card .aval {
+        font-size: 38px;
+        font-weight: 700;
+        line-height: 1;
+        transition: color 0.2s;
+      }
+      .axis-card .aunit {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .abar-wrap {
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin-top: 14px;
+      }
+      .abar {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.15s;
+        width: 50%;
+      }
+      .axis-card.x .abar {
+        background: var(--x);
+      }
+      .axis-card.y .abar {
+        background: var(--y);
+      }
+      .axis-card.z .abar {
+        background: var(--z);
+      }
+
+      /* ── CHART ── */
+      .chart-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .chart-hdr {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .chart-ttl {
+        font-family: "Syne", sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+      }
+      .leg {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .leg-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .chart-wrap {
+        height: 300px;
+        position: relative;
+      }
+
+      /* ── BOTTOM GRID ── */
+      .bot-grid {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 14px;
+      }
+
+      /* Stats */
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .stat-box {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+      }
+      .stat-val {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--z);
+      }
+      .stat-lbl {
+        font-size: 9px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 4px;
+      }
+
+      /* Magnitude */
+      .mag-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .mag-ring {
+        position: relative;
+        width: 130px;
+        height: 130px;
+      }
+      .mag-ring svg {
+        transform: rotate(-90deg);
+        width: 130px;
+        height: 130px;
+      }
+      .ring-bg {
+        fill: none;
+        stroke: var(--border);
+        stroke-width: 8;
+      }
+      .ring-fill {
+        fill: none;
+        stroke-width: 8;
+        stroke: var(--z);
+        stroke-linecap: round;
+        stroke-dasharray: 339;
+        stroke-dashoffset: 339;
+        transition:
+          stroke-dashoffset 0.3s,
+          stroke 0.3s;
+      }
+      .mag-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .mag-num {
+        font-size: 24px;
+        font-weight: 700;
+        transition: color 0.3s;
+      }
+      .mag-unit {
+        font-size: 9px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .mag-lbl {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+
+      /* Log */
+      .log-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px;
+      }
+      .log-title {
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+      }
+      .log-body {
+        height: 260px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      .log-entry {
+        font-size: 11px;
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(26, 26, 50, 0.6);
+        line-height: 1.6;
+      }
+      .log-entry:last-child {
+        border: none;
+      }
+      .lt {
+        color: var(--muted);
+      }
+      .lok {
+        color: var(--y);
+      }
+      .lerr {
+        color: var(--x);
+      }
+      .lnfo {
+        color: var(--z);
+      }
+
+      @media (max-width: 900px) {
+        .cfg-inp.wide {
+          min-width: 100%;
+        }
+        .cfg-bar {
+          flex-direction: column;
+        }
+        .bot-grid {
+          grid-template-columns: 1fr;
+        }
+        .axis-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="logo">
+        Accel<span>Receiver</span>
+        <sub>💻 LOCAL</sub>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px">
+        <div class="live-badge">
+          <div class="live-dot" id="liveDot"></div>
+          <span id="liveText">OFFLINE</span>
+        </div>
+        <div class="last-upd" id="lastUpd">—</div>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- CONFIG -->
+      <div class="cfg-bar">
+        <!-- Base URL -->
+        <div class="cfg-grp" style="flex: 1">
+          <div class="cfg-lbl">Base URL GAS</div>
+          <input
+            class="cfg-inp wide"
+            id="baseUrl"
+            value="https://script.google.com/macros/s/AKfycbznbWAOdCQXuKyGP50xjk3sgluLxRmIRYmd-ebeT8BomSUutK5hAgALAswkWTF1cWrnQg/exec"
+            placeholder="https://script.google.com/macros/s/.../exec"
+          />
+        </div>
+
+        <!-- Device ID dropdown -->
+        <div class="cfg-grp" style="flex: 1; min-width: 220px">
+          <div class="cfg-lbl">
+            <span>Device ID (HP Pengirim)</span>
+            <span class="badge-scan def" id="scanBadge">—</span>
+          </div>
+          <div class="dev-row">
+            <select class="cfg-inp" id="deviceId">
+              <option value="">⟳ Klik Scan untuk cari HP aktif...</option>
+            </select>
+            <button class="btn-scan" id="btnScan" onclick="scanDevices()">
+              🔍 Scan
+            </button>
+          </div>
+        </div>
+
+        <!-- Poll interval -->
+        <div class="cfg-grp">
+          <div class="cfg-lbl">Poll (detik)</div>
+          <input
+            class="cfg-inp"
+            id="pollInterval"
+            type="number"
+            min="1"
+            max="10"
+            value="2"
+            style="min-width: 70px"
+          />
+        </div>
+
+        <!-- Connect button -->
+        <button class="btn-conn" id="btnConn" onclick="toggleConnect()">
+          ▶ CONNECT
+        </button>
+      </div>
+
+      <!-- AXIS -->
+      <div class="axis-grid">
+        <div class="axis-card x">
+          <div class="alabel">AXIS X</div>
+          <div class="aval" id="vx">—</div>
+          <div class="aunit">m/s²</div>
+          <div class="abar-wrap"><div class="abar" id="bx"></div></div>
+        </div>
+        <div class="axis-card y">
+          <div class="alabel">AXIS Y</div>
+          <div class="aval" id="vy">—</div>
+          <div class="aunit">m/s²</div>
+          <div class="abar-wrap"><div class="abar" id="by"></div></div>
+        </div>
+        <div class="axis-card z">
+          <div class="alabel">AXIS Z</div>
+          <div class="aval" id="vz">—</div>
+          <div class="aunit">m/s²</div>
+          <div class="abar-wrap"><div class="abar" id="bz"></div></div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="chart-card">
+        <div class="chart-hdr">
+          <div class="chart-ttl">📈 Real-time Accelerometer Chart</div>
+          <div class="legend">
+            <div class="leg">
+              <div class="leg-dot" style="background: var(--x)"></div>
+              X
+            </div>
+            <div class="leg">
+              <div class="leg-dot" style="background: var(--y)"></div>
+              Y
+            </div>
+            <div class="leg">
+              <div class="leg-dot" style="background: var(--z)"></div>
+              Z
+            </div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="myChart"></canvas>
+        </div>
+      </div>
+
+      <!-- BOTTOM -->
+      <div class="bot-grid">
+        <!-- Kiri: stats + magnitude -->
+        <div>
+          <div class="stat-grid">
+            <div class="stat-box">
+              <div class="stat-val" id="sTotalPoll">0</div>
+              <div class="stat-lbl">Total Poll</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="sSuccess">0</div>
+              <div class="stat-lbl">Berhasil</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="sError">0</div>
+              <div class="stat-lbl">Error</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-val" id="sPoints">0</div>
+              <div class="stat-lbl">Data Points</div>
+            </div>
+          </div>
+
+          <div class="mag-card">
+            <div class="mag-ring">
+              <svg viewBox="0 0 130 130">
+                <circle class="ring-bg" cx="65" cy="65" r="54" />
+                <circle
+                  class="ring-fill"
+                  cx="65"
+                  cy="65"
+                  r="54"
+                  id="ringFill"
+                />
+              </svg>
+              <div class="mag-center">
+                <div class="mag-num" id="magNum">—</div>
+                <div class="mag-unit">m/s²</div>
+              </div>
+            </div>
+            <div class="mag-lbl">Magnitude</div>
+          </div>
+        </div>
+
+        <!-- Kanan: log -->
+        <div class="log-card">
+          <div class="log-title">📋 Activity Log</div>
+          <div class="log-body" id="logBody">
+            <div class="log-entry">
+              <span class="lnfo">[INFO]</span>
+              Receiver berjalan lokal. Klik 🔍 Scan → pilih HP → CONNECT.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ═══════════════════════════════════════════════════════════
+      // STATE
+      // ═══════════════════════════════════════════════════════════
+      let connected = false;
+      let pollTimer = null;
+      let scanTimer = null;
+      let totalPoll = 0;
+      let successCount = 0;
+      let errorCount = 0;
+      let dataPoints = 0;
+      let chart = null;
+      const MAX_PTS = 120;
+      const cd = { labels: [], x: [], y: [], z: [] };
+
+      // ═══════════════════════════════════════════════════════════
+      // JSONP HELPER — Kirim GET ke GAS tanpa CORS
+      // Bekerja dari localhost, file://, maupun hosting manapun
+      // GAS harus support ?jsonp=cbName → return cbName({...})
+      // ═══════════════════════════════════════════════════════════
+      function gasGet(baseUrl, params, onSuccess, onError) {
+        // Buat nama callback unik
+        const cbName =
+          "gascb_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+
+        // Daftarkan callback ke window sebelum script dimuat
+        window[cbName] = function (data) {
+          // Cleanup
+          delete window[cbName];
+          const s = document.getElementById("_s_" + cbName);
+          if (s && s.parentNode) s.parentNode.removeChild(s);
+          // Proses response
+          if (data && data.ok) onSuccess(data);
+          else onError(new Error((data && data.error) || "GAS returned error"));
+        };
+
+        // Bangun URL dengan semua parameter + jsonp callback name
+        const qs = Object.entries(params)
+          .map(([k, v]) => encodeURIComponent(k) + "=" + encodeURIComponent(v))
+          .join("&");
+        const url = baseUrl + "?" + qs + "&jsonp=" + cbName;
+
+        // Inject script tag — browser load tanpa CORS restriction
+        const s = document.createElement("script");
+        s.id = "_s_" + cbName;
+        s.src = url;
+        s.onerror = function () {
+          delete window[cbName];
+          if (s.parentNode) s.parentNode.removeChild(s);
+          onError(new Error("Script load gagal (network error)"));
+        };
+        document.head.appendChild(s);
+
+        // Timeout 10 detik
+        setTimeout(function () {
+          if (window[cbName]) {
+            delete window[cbName];
+            const el = document.getElementById("_s_" + cbName);
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+            onError(new Error("Timeout — GAS tidak merespons"));
+          }
+        }, 10000);
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // CHART INIT
+      // ═══════════════════════════════════════════════════════════
+      function initChart() {
+        const ctx = document.getElementById("myChart").getContext("2d");
+        chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: cd.labels,
+            datasets: [
+              {
+                label: "X",
+                data: cd.x,
+                borderColor: "#ff3d6e",
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.35,
+                fill: false,
+              },
+              {
+                label: "Y",
+                data: cd.y,
+                borderColor: "#00e5a0",
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.35,
+                fill: false,
+              },
+              {
+                label: "Z",
+                data: cd.z,
+                borderColor: "#5b8fff",
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.35,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: "#0d0d1a",
+                borderColor: "#1a1a32",
+                borderWidth: 1,
+                titleColor: "#4a4a6a",
+                bodyColor: "#e8e8f0",
+                titleFont: { family: "JetBrains Mono", size: 10 },
+                bodyFont: { family: "JetBrains Mono", size: 11 },
+                callbacks: {
+                  label: (c) =>
+                    " " + c.dataset.label + ": " + c.parsed.y.toFixed(4),
+                },
+              },
+            },
+            scales: {
+              x: { display: false },
+              y: {
+                grid: { color: "#1a1a32", lineWidth: 0.5 },
+                ticks: {
+                  color: "#4a4a6a",
+                  font: { family: "JetBrains Mono", size: 10 },
+                  maxTicksLimit: 6,
+                  callback: (v) => v.toFixed(1),
+                },
+                border: { display: false },
+              },
+            },
+          },
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // SCAN DEVICE AKTIF
+      // ═══════════════════════════════════════════════════════════
+      function scanDevices() {
+        const baseUrl = document
+          .getElementById("baseUrl")
+          .value.trim()
+          .replace(/\/+$/, "");
+        if (!baseUrl) {
+          log("ERR", "Isi Base URL GAS dulu!");
+          return;
+        }
+
+        const btn = document.getElementById("btnScan");
+        const badge = document.getElementById("scanBadge");
+        btn.textContent = "⏳...";
+        btn.disabled = true;
+        badge.textContent = "SCANNING";
+        badge.className = "badge-scan def";
+
+        gasGet(
+          baseUrl,
+          { action: "listDevices", minutes: "5" },
+          function (json) {
+            const devices = json.data.devices || [];
+            const sel = document.getElementById("deviceId");
+            const prev = sel.value;
+
+            sel.innerHTML = '<option value="">— Pilih Device —</option>';
+
+            if (devices.length === 0) {
+              sel.innerHTML +=
+                '<option disabled value="">Tidak ada device aktif (5 menit terakhir)</option>';
+              badge.textContent = "0 DEVICE";
+              badge.className = "badge-scan def";
+              log(
+                "INFO",
+                "Tidak ada device aktif. Jalankan sender.html di HP dulu.",
+              );
+            } else {
+              devices.forEach(function (dev) {
+                const ago = timeAgo(dev.last_seen);
+                const opt = document.createElement("option");
+                opt.value = dev.device_id;
+                opt.textContent = dev.device_id + "   (" + ago + ")";
+                sel.appendChild(opt);
+              });
+
+              // Restore pilihan lama jika masih ada
+              if (
+                prev &&
+                devices.find(function (d) {
+                  return d.device_id === prev;
+                })
+              ) {
+                sel.value = prev;
+              } else if (devices.length === 1) {
+                sel.value = devices[0].device_id;
+                log("OK", "Auto-pilih: " + devices[0].device_id);
+              }
+
+              badge.textContent = devices.length + " AKTIF";
+              badge.className = "badge-scan ok";
+              log(
+                "OK",
+                "Ditemukan " +
+                  devices.length +
+                  " device: " +
+                  devices
+                    .map(function (d) {
+                      return d.device_id;
+                    })
+                    .join(", "),
+              );
+            }
+
+            btn.textContent = "🔍 Scan";
+            btn.disabled = false;
+          },
+          function (err) {
+            badge.textContent = "GAGAL";
+            badge.className = "badge-scan err";
+            log("ERR", "Scan gagal: " + err.message);
+            log(
+              "ERR",
+              "Pastikan GAS sudah di-deploy ulang dengan versi AccelerometerGAS.js terbaru!",
+            );
+            btn.textContent = "🔍 Scan";
+            btn.disabled = false;
+          },
+        );
+      }
+
+      function timeAgo(iso) {
+        const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+        if (s < 60) return s + "s lalu";
+        if (s < 3600) return Math.floor(s / 60) + "m lalu";
+        return Math.floor(s / 3600) + "j lalu";
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // POLL DATA TERBARU
+      // ═══════════════════════════════════════════════════════════
+      function poll() {
+        const baseUrl = document
+          .getElementById("baseUrl")
+          .value.trim()
+          .replace(/\/+$/, "");
+        const deviceId = document.getElementById("deviceId").value.trim();
+        if (!baseUrl || !deviceId) return;
+
+        totalPoll++;
+        document.getElementById("sTotalPoll").textContent = totalPoll;
+
+        gasGet(
+          baseUrl,
+          { action: "latestAccel", device_id: deviceId },
+          function (json) {
+            const d = json.data;
+            const x = parseFloat(d.x);
+            const y = parseFloat(d.y);
+            const z = parseFloat(d.z);
+            const ts = d.t || new Date().toISOString();
+
+            // Update nilai axis
+            document.getElementById("vx").textContent = x.toFixed(4);
+            document.getElementById("vy").textContent = y.toFixed(4);
+            document.getElementById("vz").textContent = z.toFixed(4);
+
+            // Bar indicator (range -10 s/d +10)
+            const bar = function (v) {
+              return Math.min(100, Math.max(0, ((v + 10) / 20) * 100));
+            };
+            document.getElementById("bx").style.width = bar(x) + "%";
+            document.getElementById("by").style.width = bar(y) + "%";
+            document.getElementById("bz").style.width = bar(z) + "%";
+
+            // Magnitude ring
+            const mag = Math.sqrt(x * x + y * y + z * z);
+            document.getElementById("magNum").textContent = mag.toFixed(3);
+            const pct = Math.min(1, mag / 17);
+            const offset = 339 - pct * 339;
+            const color =
+              pct < 0.4 ? "#5b8fff" : pct < 0.7 ? "#00e5a0" : "#ff3d6e";
+            document.getElementById("ringFill").style.strokeDashoffset = offset;
+            document.getElementById("ringFill").style.stroke = color;
+            document.getElementById("magNum").style.color = color;
+
+            // Update chart
+            const label = ts.slice(11, 22);
+            cd.labels.push(label);
+            cd.x.push(x);
+            cd.y.push(y);
+            cd.z.push(z);
+            if (cd.labels.length > MAX_PTS) {
+              cd.labels.shift();
+              cd.x.shift();
+              cd.y.shift();
+              cd.z.shift();
+            }
+            chart.update("none");
+
+            // Stats
+            successCount++;
+            dataPoints++;
+            document.getElementById("sSuccess").textContent = successCount;
+            document.getElementById("sPoints").textContent = dataPoints;
+            document.getElementById("lastUpd").textContent =
+              "Update: " + new Date().toLocaleTimeString("id-ID");
+            setLive(true);
+            log(
+              "OK",
+              "x:" +
+                x.toFixed(3) +
+                "  y:" +
+                y.toFixed(3) +
+                "  z:" +
+                z.toFixed(3) +
+                "  |mag:" +
+                mag.toFixed(2),
+            );
+          },
+          function (err) {
+            errorCount++;
+            document.getElementById("sError").textContent = errorCount;
+            log("ERR", "Poll gagal: " + err.message);
+            if (errorCount > 5 && successCount === 0) setLive(false);
+          },
+        );
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // CONNECT / DISCONNECT
+      // ═══════════════════════════════════════════════════════════
+      function toggleConnect() {
+        if (!connected) {
+          const deviceId = document.getElementById("deviceId").value.trim();
+          if (!deviceId) {
+            log(
+              "ERR",
+              "Pilih Device ID dari dropdown terlebih dulu! Klik 🔍 Scan.",
+            );
+            return;
+          }
+
+          connected = true;
+          const sec =
+            parseInt(document.getElementById("pollInterval").value) || 2;
+
+          poll(); // langsung poll pertama
+          pollTimer = setInterval(poll, sec * 1000);
+          scanTimer = setInterval(scanDevices, 15000); // refresh device list tiap 15 detik
+
+          document.getElementById("btnConn").textContent = "■ DISCONNECT";
+          document.getElementById("btnConn").classList.add("stop");
+          log("INFO", "Connected → poll setiap " + sec + "s");
+          log("INFO", "Monitoring: " + deviceId);
+        } else {
+          connected = false;
+          clearInterval(pollTimer);
+          clearInterval(scanTimer);
+          pollTimer = null;
+          scanTimer = null;
+
+          document.getElementById("btnConn").textContent = "▶ CONNECT";
+          document.getElementById("btnConn").classList.remove("stop");
+          setLive(false);
+          log(
+            "INFO",
+            "Disconnected. Total: " +
+              successCount +
+              " berhasil, " +
+              errorCount +
+              " error.",
+          );
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // HELPER UI
+      // ═══════════════════════════════════════════════════════════
+      function setLive(on) {
+        const dot = document.getElementById("liveDot");
+        const txt = document.getElementById("liveText");
+        dot.className = "live-dot" + (on ? " on" : connected ? " " : "");
+        txt.textContent = on ? "LIVE" : connected ? "WAITING..." : "OFFLINE";
+      }
+
+      function log(type, msg) {
+        const body = document.getElementById("logBody");
+        const time = new Date().toLocaleTimeString("id-ID");
+        const cls = type === "OK" ? "lok" : type === "ERR" ? "lerr" : "lnfo";
+        const el = document.createElement("div");
+        el.className = "log-entry";
+        el.innerHTML =
+          '<span class="lt">' +
+          time +
+          '</span> <span class="' +
+          cls +
+          '">[' +
+          type +
+          "]</span> " +
+          msg;
+        body.prepend(el);
+        while (body.children.length > 60) body.removeChild(body.lastChild);
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // INIT
+      // ═══════════════════════════════════════════════════════════
+      window.addEventListener("DOMContentLoaded", function () {
+        initChart();
+        log("INFO", "Receiver siap. Berjalan di: " + window.location.href);
+        // Auto-scan setelah 1.5 detik
+        setTimeout(function () {
+          const url = document.getElementById("baseUrl").value.trim();
+          if (url) {
+            log("INFO", "Auto-scanning device aktif dari GAS...");
+            scanDevices();
+          }
+        }, 1500);
+      });
+    </script>
+  </body>
+</html>
