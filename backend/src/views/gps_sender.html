@@ -44,7 +44,7 @@
 <div id="console"></div>
 
 <script>
-const BASE_URL = "https://script.google.com/macros/s/AKfycbzfLG76eT7pekm_nHLRLtEhr4NWk0HKHgWn7KkjoPIfabTLyMHhicxO1keotjDpcMHlcg/exec";
+const BASE_URL = "https://script.google.com/macros/s/AKfycbwNR7cr6EB-ck_veEViOwfuvjaF4j23Tc1gojdeEGAl4QIyHiio2l34eZdfoUbMi0oU_Q/exec";
 const DEVICE_ID = "dev-001";
 
 let watchId = null;
@@ -102,6 +102,38 @@ function startRecording() {
 //     log(`❌ Error: ${err}`);
 //   });
 // }
+// function sendLocation(position) {
+//   const data = {
+//     device_id: DEVICE_ID,
+//     ts: new Date().toISOString(),
+//     lat: position.coords.latitude,
+//     lng: position.coords.longitude,
+//     accuracy_m: position.coords.accuracy,
+//     altitude: position.coords.altitude || 0
+//   };
+
+//   document.getElementById("status").innerText =
+//     `Lat: ${data.lat}, Lng: ${data.lng}`;
+
+//   log(`📤 Kirim: ${JSON.stringify(data)}`);
+
+//   fetch(BASE_URL + "/telemetry/gps", {
+//     method: "POST",
+//     mode: "no-cors", // 🔥 WAJIB biar tidak error
+//     body: JSON.stringify(data),
+//     headers: {
+//       "Content-Type": "application/json"
+//     }
+//   })
+//   .then(() => {
+//     // ⚠️ tidak bisa baca response karena no-cors
+//     log("✅ Data berhasil dikirim (cek spreadsheet)");
+//   })
+//   .catch(err => {
+//     log(`❌ Error: ${err}`);
+//   });
+// }
+
 function sendLocation(position) {
   const data = {
     device_id: DEVICE_ID,
@@ -117,21 +149,18 @@ function sendLocation(position) {
 
   log(`📤 Kirim: ${JSON.stringify(data)}`);
 
-  fetch(BASE_URL + "/telemetry/gps", {
-    method: "POST",
-    mode: "no-cors", // 🔥 WAJIB biar tidak error
-    body: JSON.stringify(data),
-    headers: {
-      "Content-Type": "application/json"
-    }
-  })
-  .then(() => {
-    // ⚠️ tidak bisa baca response karena no-cors
-    log("✅ Data berhasil dikirim (cek spreadsheet)");
-  })
-  .catch(err => {
-    log(`❌ Error: ${err}`);
-  });
+  const url = BASE_URL +
+    "?action=postGPS" +
+    "&payload=" + encodeURIComponent(JSON.stringify(data));
+
+  fetch(url)
+    .then(res => res.text())
+    .then(res => {
+      log("✅ RESPONSE: " + res);
+    })
+    .catch(err => {
+      log("❌ ERROR: " + err);
+    });
 }
 
 function error(err) {
